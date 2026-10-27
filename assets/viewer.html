@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title><!--TITLE--></title>
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,sans-serif;color:#273448;background:#f6f8fb;font-size:14px}
+*{box-sizing:border-box}body{margin:0}header{padding:24px 32px 18px;border-bottom:1px solid #e2e7ee;background:white}
+h1{margin:0 0 8px;font-weight:600;font-size:23px}p{line-height:1.65;margin:8px 0}.muted{color:#67758a;font-size:12px}
+main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:20px;padding:20px;max-width:1600px;margin:auto}
+#canvas{overflow:auto;border:1px solid #e4e9ef;border-radius:16px;background:white;min-width:0}
+svg{display:block;width:100%;min-width:680px;height:auto}svg [role=button]{cursor:pointer}svg [role=button]:hover>rect,svg .selected>rect{stroke:#3573b2;stroke-width:2}svg [role=button]:focus{outline:none}svg [role=button]:focus>rect{stroke:#3573b2;stroke-width:2}
+aside{position:sticky;top:20px;align-self:start;max-height:calc(100vh - 40px);overflow:auto;background:white;border:1px solid #e4e9ef;border-radius:16px;padding:20px}
+h2{font-size:18px;margin:0 0 14px}h3{font-size:13px;color:#64748b;margin:20px 0 5px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.6;background:#f5f7fa;padding:12px;border-radius:8px}
+ul{padding-left:20px;line-height:1.7}summary{cursor:pointer;color:#52657f;overflow-wrap:anywhere}details{margin:12px 0}button{border:1px solid #d8e2ef;background:white;border-radius:6px;padding:6px 10px;cursor:pointer;color:#365d87}.pill{display:inline-block;background:#edf2f8;border-radius:6px;padding:4px 8px;margin:3px 4px 3px 0;font-size:12px}
+@media(max-width:850px){header{padding:18px}main{grid-template-columns:1fr;padding:12px;gap:12px}aside{position:static;max-height:none}svg{min-width:680px}h1{font-size:20px}}
+</style></head><body><header><h1><!--TITLE--></h1><p id="overview" class="muted"></p><button id="download">下载规范 JSON</button></header>
+<main><section id="canvas" aria-label="有向探索图"><!--GRAPH--></section><aside id="detail" aria-live="polite"></aside></main>
+<script id="graph-data" type="application/json">/*PAYLOAD*/</script>
+<script>
+'use strict';
+const {graph,view}=JSON.parse(document.getElementById('graph-data').textContent);
+const byId=xs=>new Map(xs.map(x=>[x.id,x]));
+const states=byId(graph.states),transitions=byId(graph.transitions),evidence=byId(graph.evidence),sources=byId(graph.sources),groups=byId(view.action_groups);
+const pane=document.getElementById('detail');
+function add(tag,text,cls,parent=pane){const n=document.createElement(tag);n.textContent=text;if(cls)n.className=cls;parent.append(n);return n}
+function section(title,value){add('h3',title);if(Array.isArray(value)){const ul=add('ul','');for(const item of value)add('li',item,null,ul);if(!value.length)add('p','无','muted')}else add('p',value===null?'未重建':String(value))}
+function raw(title,obj){const d=add('details','');add('summary',title,null,d);add('pre',JSON.stringify(obj,null,2),null,d)}
+function refs(ids){if(!ids.length)return;add('h3','来源证据');for(const id of [...new Set(ids)]){const ev=evidence.get(id),src=sources.get(ev.source_id);raw(`${id} · ${ev.summary}`,{path:src.path,line:ev.line,output_line:ev.output_line,timestamp:ev.timestamp,sha256:src.sha256})}}
+function observations(kind,ids){const os=graph.observations.filter(o=>o.subject_type===kind&&ids.includes(o.subject_id));if(os.length)add('h3','观察与验证');for(const o of os){add('p',o.summary);add('span',o.kind+' · '+o.verdict,'pill')}return os.flatMap(o=>o.evidence_refs)}
+function select(node){document.querySelectorAll('.selected').forEach(n=>n.classList.remove('selected'));node.classList.add('selected');pane.replaceChildren();const sid=node.dataset.stateId;if(sid){const s=states.get(sid);add('h2',s.label);add('span',s.id+' · '+s.acceptance,'pill');section('表示与约束',s.content.representation);section('候选解 / 证明',s.content.candidate);section('已建立结论',s.content.established);section('待解决目标',s.content.open_goals);refs([...s.evidence_refs,...observations('state',[sid])]);raw('完整状态',s)}else{const g=groups.get(node.dataset.actionGroupId);add('h2',g.action.label);add('span',g.outcome,'pill');add('span',g.effect==='unchanged'?'状态不变':g.target===null?'去向未知':g.source+' → '+g.target,'pill');section('数学目标',g.action.goal);section('方法',g.action.method);raw('关键参数',g.action.parameters);section('执行实例',g.transition_ids.length+' 次；展示聚合不合并执行记录');let ids=[];for(const tid of g.transition_ids){const t=transitions.get(tid);raw(tid,t);ids.push(...t.evidence_refs)}ids.push(...observations('transition',g.transition_ids));refs(ids)}}
+document.querySelectorAll('[data-state-id],[data-action-group-id]').forEach(n=>{n.addEventListener('click',()=>select(n));n.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(n)}})});
+document.getElementById('overview').textContent=`${graph.states.length} 个状态 · ${graph.transitions.length} 次动作 · ${graph.transitions.filter(t=>t.effect==='unchanged').length} 次状态未变 · ${graph.transitions.filter(t=>t.effect==='unknown').length} 次去向未知。点击状态或动作查看详情；布局不表示时间顺序。`;
+add('h2','分析范围');section('覆盖',graph.coverage.scope);section('局限',graph.coverage.limitations);add('p','点击图中的状态或动作，查看数学内容、执行实例和来源。','muted');
+document.getElementById('download').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(graph,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='graph.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+</script></body></html>

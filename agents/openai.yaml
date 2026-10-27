@@ -1,0 +1,4 @@
+interface:
+  display_name: "trace2graph-math"
+  short_description: "将 LLM trace 归纳为可追溯的状态、动作与失败分支图"
+  default_prompt: "用 $trace2graph-math 分析指定的 LLM trace，依据动作与状态粒度规则标注探索过程，保守归约等价状态，并生成可校验 JSON 和交互探索图。"

@@ -1,0 +1,502 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Exploration State Graph 1.0",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "graph_id": {
+      "$ref": "#/$defs/id"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "initial_state_id": {
+      "$ref": "#/$defs/id"
+    },
+    "granularity": {
+      "type": "object",
+      "properties": {
+        "rule_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state_rule": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action_rule": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "rule_version",
+        "state_rule",
+        "action_rule"
+      ],
+      "additionalProperties": false
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "scope",
+        "limitations"
+      ],
+      "additionalProperties": false
+    },
+    "states": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/state"
+      },
+      "minItems": 1
+    },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/transition"
+      }
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/observation"
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "state_aliases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/alias"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "graph_id",
+    "title",
+    "initial_state_id",
+    "granularity",
+    "coverage",
+    "states",
+    "transitions",
+    "observations",
+    "sources",
+    "evidence",
+    "state_aliases"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "content": {
+      "type": "object",
+      "properties": {
+        "representation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "candidate": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "established": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "open_goals": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "representation",
+        "candidate",
+        "established",
+        "open_goals"
+      ],
+      "additionalProperties": false
+    },
+    "state": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content": {
+          "$ref": "#/$defs/content"
+        },
+        "content_scope": {
+          "enum": [
+            "summary",
+            "snapshot"
+          ]
+        },
+        "acceptance": {
+          "enum": [
+            "unverified",
+            "passed",
+            "failed"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "content",
+        "content_scope",
+        "acceptance",
+        "evidence_refs"
+      ],
+      "additionalProperties": false
+    },
+    "action": {
+      "type": "object",
+      "properties": {
+        "type_id": {
+          "$ref": "#/$defs/id"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "group": {
+          "type": "string",
+          "minLength": 1
+        },
+        "goal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "method": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parameters": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "type_id",
+        "label",
+        "group",
+        "goal",
+        "method",
+        "parameters"
+      ],
+      "additionalProperties": false
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "duration_ms": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "tokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "required": [
+        "duration_ms",
+        "tokens"
+      ],
+      "additionalProperties": false
+    },
+    "order": {
+      "type": "object",
+      "properties": {
+        "batch_id": {
+          "$ref": "#/$defs/id"
+        },
+        "position": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "transition": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "source": {
+          "$ref": "#/$defs/id"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "action": {
+          "$ref": "#/$defs/action"
+        },
+        "effect": {
+          "enum": [
+            "unchanged",
+            "changed",
+            "unknown"
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "progress",
+            "not_found",
+            "counterexample",
+            "error",
+            "abandoned",
+            "unknown"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "uniqueItems": true
+        },
+        "order": {
+          "$ref": "#/$defs/order"
+        },
+        "metrics": {
+          "$ref": "#/$defs/metrics"
+        }
+      },
+      "required": [
+        "id",
+        "source",
+        "target",
+        "action",
+        "effect",
+        "outcome",
+        "evidence_refs",
+        "order",
+        "metrics"
+      ],
+      "additionalProperties": false
+    },
+    "observation": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "subject_type": {
+          "enum": [
+            "state",
+            "transition"
+          ]
+        },
+        "subject_id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "enum": [
+            "search_result",
+            "validation",
+            "execution",
+            "environment",
+            "note"
+          ]
+        },
+        "verdict": {
+          "enum": [
+            "passed",
+            "failed",
+            "unknown",
+            "not_applicable"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "subject_type",
+        "subject_id",
+        "kind",
+        "verdict",
+        "summary",
+        "evidence_refs"
+      ],
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "id",
+        "path",
+        "sha256"
+      ],
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "source_id": {
+          "$ref": "#/$defs/id"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "output_line": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "timestamp": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id",
+        "source_id",
+        "line",
+        "output_line",
+        "timestamp",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "alias": {
+      "type": "object",
+      "properties": {
+        "original_id": {
+          "$ref": "#/$defs/id"
+        },
+        "canonical_id": {
+          "$ref": "#/$defs/id"
+        },
+        "basis": {
+          "enum": [
+            "syntactic_normalization",
+            "verified_equivalence"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "original_id",
+        "canonical_id",
+        "basis",
+        "reason",
+        "evidence_refs"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
