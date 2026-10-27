@@ -115,7 +115,7 @@ ID 只能使用字母、数字、`_ . : -`，首字符为字母或数字。各�
 
 ## 展示与验证边界
 
-`graph_protocol.py` 先校验，再生成 `.view.json` 并渲染 SVG/HTML。仅当 source、target、完整 action、effect、outcome 完全相同，显示层才折叠动作框；`transition_ids` 保留所有实例。状态布局使用可达性顺序，不表示时间。
+`graph_protocol.py validate` 校验规范数据；默认用 `render_graph.py` 生成紧凑正交走线图。具体显示契约与复现命令见 [rendering.md](rendering.md)。旧 `graph_protocol.py render` 保留为无浏览器的参考渲染器，不产生相同视觉效果。仅当 source、target、完整 action、effect、outcome 完全相同，显示层才折叠动作框；`transition_ids` 保留所有实例。状态布局使用可达性顺序，不表示时间。
 
 状态、动作组可点击显示数学内容、实例、观察和来源；支持未知目标、循环、断开的状态，不要求 DAG。所有来源文本按文本渲染，不作为 HTML 执行。标准程序不读取标题推断拓扑、不判断等价、不清除失败边。样式更改不应改变规范 JSON。
 

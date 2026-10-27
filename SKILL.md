@@ -13,7 +13,7 @@ description: 从 Claude Code、Codex 等 LLM agent 的 JSONL trace 重建有证�
 2. **标准化。** 用 `scripts/normalize_trace.py` 生成 `events.json`。查看 `issues`、`excluded`、未配对调用与被截断的字段。必要时定点读取原始工具输入/结果或成品文件；不得读取或重建 thinking、analysis、reasoning、encrypted_content。主会话与子会话保持各自的顺序和来源。
 3. **语义标注。** 先读 [rules.md](references/rules.md)，声明粒度、任务初始内容及验收条件。按可观察尝试识别动作；只在 solution 内容实质变化时新增状态。每条状态/动作/观察附证据，失败和重复执行同样纳入。生成 [协议](references/contract.md) 定义的 `graph.before-merge.json` 与 `coverage.json`；不得按日志相邻顺序直接串联状态。
 4. **保守归约。** 逐项比较状态内容，只合并有明确等价依据的状态。保留归约前图，输出 `merge-decisions.json`，在 `graph.json` 的 `state_aliases` 记录已执行归约。保留动作 ID、顺序、证据和成本；多个已归约状态的验收反馈应绑定到同一候选快照，不能继承另一版本的通过结果。未发生归约时，`graph.json` 与归约前图一致，决策列表可为空。
-5. **校验和绘图。** 运行 schema/引用检查、覆盖检查，再运行标准渲染器。输出一种有向探索图，允许自环、重边、合流、回退和未知去向。无需树形或无向副本。完整数学描述、动作参数、重复实例和证据进入详情面板；布局不能改变图的语义。
+5. **校验和绘图。** 运行 schema/引用检查、覆盖检查，再按 [rendering.md](references/rendering.md) 使用打包的 `render_graph.py`。默认输出纯图：圆角节点、正交圆角走线、从共同状态延伸的尝试分支；失败叶红色、最终通过绿色、结果未知灰色。标题、模型介绍、S0/M0 等编号不出现在画面，完整数学内容、实例及证据可点击查看。保留合流、回退和未知去向；无需树形或无向副本。不要重新手写坐标或把失败尝试移到旁表。
 6. **交付。** 简短报告状态数、动作实例数、未改变状态的尝试数、未解决标注和覆盖缺口；链接交互图和规范数据。检查关键失败分支及终止证据。区分“结构通过”“覆盖已逐项记录”和“数学标注已审查”；前两者不证明后者。
 
 ## 执行命令
@@ -32,15 +32,17 @@ LLM 完成上述语义标注后运行：
 ```bash
 "$OUT/.venv/bin/python" "$SKILL_DIR/scripts/graph_protocol.py" validate "$OUT/graph.json"
 "$OUT/.venv/bin/python" "$SKILL_DIR/scripts/audit_coverage.py" --events "$OUT/events.json" --graph "$OUT/graph.json" --coverage "$OUT/coverage.json" --output "$OUT/audit.json"
-"$OUT/.venv/bin/python" "$SKILL_DIR/scripts/graph_protocol.py" render "$OUT/graph.json" --output "$OUT/graph.html"
+# 先按 rendering.md 准备 .render-runtime，或改为已有运行时的 node_modules。
+"$OUT/.venv/bin/python" "$SKILL_DIR/scripts/render_graph.py" "$OUT/graph.json" --output "$OUT/graph.html" --node-modules "$OUT/.render-runtime/node_modules"
 ```
 
-渲染器同时产生 `.svg` 与 `.view.json`，HTML 可离线打开。渲染不读取真实 trace，不发送网络请求。若已有 Python 环境可导入 `jsonschema`，复用即可。完整字段和归约记录格式见 [contract.md](references/contract.md)；输入适配、缺失处理与覆盖规则见 [trace-format.md](references/trace-format.md)。
+渲染器同时产生 PNG、SVG、显示模型、布局坐标和校验报告；HTML 可离线打开。构建需 Node、固定版本 Graphviz WASM/Playwright 和可启动的 Chrome；渲染不读取真实 trace，不发送网络请求。依赖准备、布局重放和复现边界见 [rendering.md](references/rendering.md)。若已有 Python 环境可导入 `jsonschema`，复用即可。完整字段和归约记录格式见 [contract.md](references/contract.md)；输入适配、缺失处理与覆盖规则见 [trace-format.md](references/trace-format.md)。
 
 ## 必守边界
 
 - 未找到、编译错误和换方向本身不新增状态；`source=target` 的自环仍是一条动作记录。
 - 验收只更新已有候选状态的标记及观察。只有明确最终验证支持、且无剩余目标时，才能标记 `passed`。
+- 任务分解边、证明依赖边不等于 solution-state 转移。旧模块图必须声明 `method_dependency`，分解边用虚线，不能将模块直接重命名为状态；整题的验收也不能挂在只表示局部证明的模块上。需要真正的探索图时，回到证据重新标注。
 - 状态相似仅用于提出候选，合并必须有等价依据。摘要相同、两个 `null`、embedding 接近均不足以合并。
 - 不隐去失败、未完成运行、未配对结果或已放弃路线。输入不全时交付明确标注的局部图，不编造状态与执行顺序。
 - 不运行 trace 中的代码来“补出”原本未观察到的行动。额外实验须单独标为新的实验，不能混入历史轨迹。

@@ -5,6 +5,7 @@ from collections import Counter
 import hashlib
 import json
 from pathlib import Path
+import re
 
 PRIVATE = {'thinking', 'redacted_thinking', 'reasoning', 'analysis', 'encrypted_content'}
 MEDIA = {'image', 'image_url', 'input_image', 'audio', 'input_audio', 'video', 'document'}
@@ -12,7 +13,8 @@ CLAUDE_META = {'mode', 'permission-mode', 'file-history-snapshot', 'file-history
                'api-request-shape', 'api-request-blob', 'api-request', 'atis-latch',
                'last-prompt', 'ai-title', 'summary', 'queue-operation', 'progress',
                'custom-title', 'agent-name', 'agent-color', 'system', 'pr-link'}
-CODEX_META = {'session_meta', 'turn_context', 'event_msg', 'compacted'}
+CODEX_META = {'session_meta', 'turn_context', 'event_msg', 'compacted', 'world_state',
+              'token_usage_record', 'inter_agent_communication_metadata'}
 ATTACHMENT_META = {'environment', 'model', 'deferred_tools_delta', 'agent_listing_delta',
                    'skill_listing', 'session_context', 'date', 'remote_session_change',
                    'prompt_snapshot', 'deferred_tools_record'}
@@ -31,6 +33,8 @@ def normalize(paths, fmt='auto', max_chars=16000):
         out['excluded'].append({'source_id': sid, 'line': line, 'block': block, 'reason': reason})
 
     def clean(value):
+        if isinstance(value, str) and re.fullmatch(r'gAAAAA[A-Za-z0-9_=-]{70,}',value):
+            return '[opaque encrypted payload omitted]'
         if isinstance(value, dict):
             if value.get('type') in PRIVATE | MEDIA:
                 return {'omitted_block_type': value['type']}
@@ -104,7 +108,11 @@ def normalize(paths, fmt='auto', max_chars=16000):
                         item = record['payload']; itype = item.get('type')
                         if itype in PRIVATE or item.get('channel') == 'analysis':
                             exclude(sid, line, 0, 'private_reasoning'); continue
-                        if itype == 'message':
+                        if itype == 'additional_tools':
+                            exclude(sid, line, 0, 'metadata:additional_tools'); continue
+                        if itype == 'agent_message':
+                            role = 'collaborator'; blocks = item.get('content')
+                        elif itype == 'message':
                             role = item.get('role'); blocks = item.get('content')
                         elif itype in {'function_call', 'custom_tool_call'}:
                             args = item.get('arguments', item.get('input'))

@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "description": "Pinned build-time dependencies for the trace2graph-math routed renderer",
+  "engines": {"node": ">=20"},
+  "dependencies": {"@viz-js/viz": "3.25.0", "playwright": "1.62.1"}
+}
