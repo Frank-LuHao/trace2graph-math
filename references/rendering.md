@@ -1,6 +1,6 @@
 # 紧凑走线图：输入、构建和复现
 
-默认使用包内 `scripts/render_graph.py`、`scripts/render_routed.cjs` 和 `assets/routed/`，无需复制上一任务的脚本。规范图仍采用 `exploration-graph/1.0`；显示、布局分别版本化。固定样式保留在资源文件中，不能靠提示词要求下一次绘图“看起来一样”。
+默认使用包内 `scripts/render_graph.py`、`scripts/render_routed.cjs`、`scripts/root_layout.cjs` 和 `assets/routed/`，无需复制上一任务的脚本。渲染版本为 `routed-1.1`；规范图仍采用 `exploration-graph/1.0`，显示、布局分别版本化。固定样式保留在资源文件中，不能靠提示词要求下一次绘图“看起来一样”。
 
 ## 一次构建
 
@@ -36,6 +36,8 @@ python3 "$SKILL_DIR/scripts/render_graph.py" "$OUT/graph.json" \
 普通输入是规范状态图，脚本自动产生显示模型。不要手工将日志顺序变成边。
 
 - 顶层：`schema_version`、`semantic_model`、`graph_id`、`nodes[]`、`edges[]`、`scope`。状态图保留完整 `source_graph`，校验显示结构及状态标记与源图一致。
+- 根节点：`root_id` 指向题目初始结点。状态图从 `source_graph.initial_state_id` 精确定位；模块图用显式 `root_id` 指定 `task`，或使用唯一无入边的 `task`。多个独立问题应分别绘制，不按节点数组顺序、S0 字样或最上方位置猜根。
+- 根的显示标题统一为“原题条件”，`root=true`、`preview=""`；原名保留为 `source_label`。完整问题条件仍在内容和详情中，原始规范图不改名、不改内容。根节点内文字水平居中。
 - 节点：`id` 是布局键；`canonical_id` 是源图 ID；`role=state|action|task|method`；`label` 是数学内容标题；`body` 为摘要；`tone=neutral|success|failed|unknown`；`evidence_refs[]` 为证据。完整内容、观察、待解目标进入详情。
 - 动作节点附 `source`、`target`、`effect`、`outcome`、`parameters`、`transition_ids[]` 和重复次数 `count`。它是动作边的展开，不是新的 solution state。
 - 边：`id,source,target,kind`，源图动作边带 `transition_ids[]`。`attempt` 表示状态→动作；`transition` 表示动作→实际新状态。未改变状态和未知目标只展示从源状态延伸的动作叶，完整数据仍分别记录 `source=target` 或 `target=null`。
@@ -47,8 +49,9 @@ python3 "$SKILL_DIR/scripts/render_graph.py" "$OUT/graph.json" \
 ## 布局与验收
 
 - 先测量真实字体和节点高度，再用 dot 正交布线；转角半径 9px，交叉处白色底线。多个尝试紧凑排列，无形排版约束不输出为数学边。
+- dot 后使用 `centerRoot(layout, rootId)`：将根及首个分叉前的独立主线放在画布中轴，把分叉出口接回原有走线；必要时仅增加出口区的纵向间距，不靠扩大横向空白来居中普通图。后续分支、合流、动作实例和颜色保持。存在回边或其他并行根时保留走线，用对称边距居中声明的初始节点，并在 `root_presentation.mode` 说明回退方式。
 - 图面只保留节点内容与连线。S0/M0 等 ID 留在数据和详情中。状态浅蓝；未成功的尝试叶红；验证完整通过绿；结果未观察到或待定灰。单一路径动作可缩为连线中的文字。完整数学文本不因摘要截断而丢失。
-- 校验节点和边的 ID/端点一致、节点不重叠、文字不溢出、线不穿过无关节点、详情可打开；不擅自删除失败分支、合流或回退来通过布局检查。循环会关闭只适合 DAG 的分支网格约束。
+- 校验根标题、文字居中和根中心相对画布中轴的误差（≤1px），并校验节点和边的 ID/端点一致、节点不重叠、文字不溢出、线不穿过无关节点、详情可打开；不擅自删除失败分支、合流或回退来通过布局检查。循环会关闭只适合 DAG 的分支网格约束。审计保存 `root_presentation`、移动节点与新增高度。
 - 查看至少一张复杂分叉/合流图及一个未完成案例。结构和几何检查不能证明数学标注正确；状态划分和最终验收范围仍需语义审查。
 
 布局可重放：

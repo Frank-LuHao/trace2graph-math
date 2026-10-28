@@ -43,7 +43,30 @@ def prepare(graph):
                 edges.append({'id':g['id']+'.requires.'+sid,'source':'state:'+sid,'target':'state:'+g['target'],'kind':'requires','basis':'explicit action parameters','transition_ids':g['transition_ids']})
     # Identical assembly dependencies need only one display line.
     seen=set();edges=[e for e in edges if (e['source'],e['target'],e['kind']) not in seen and not seen.add((e['source'],e['target'],e['kind']))]
-    return {'schema_version':'trace2graph-view/1.0','semantic_model':'state_action','graph_id':graph['graph_id'],'nodes':nodes,'edges':edges,'source_graph':graph,'scope':graph['coverage']}
+    view={'schema_version':'trace2graph-view/1.0','semantic_model':'state_action','graph_id':graph['graph_id'],'nodes':nodes,'edges':edges,'source_graph':graph,'scope':graph['coverage']}
+    normalize_root(view)
+    return view
+
+
+def normalize_root(view):
+    """Normalize presentation only; never rename a canonical state or infer one."""
+    if view.get('semantic_model')=='state_action':
+        sid=view['source_graph']['initial_state_id']
+        roots=[n for n in view['nodes'] if n.get('role')=='state' and n.get('canonical_id')==sid]
+    elif view.get('root_id'):
+        roots=[n for n in view['nodes'] if n['id']==view['root_id'] and n.get('role')=='task']
+    else:
+        targets={e['target'] for e in view['edges']}
+        roots=[n for n in view['nodes'] if n.get('role')=='task' and n['id'] not in targets]
+    if len(roots)!=1:raise ValueError('Declare exactly one problem root; split independent problems before rendering')
+    root=roots[0]
+    if view.get('root_id') not in [None,root['id']]:raise ValueError('Display root differs from the declared initial state')
+    view['root_id']=root['id']
+    view['root_label']='原题条件'
+    for n in view['nodes']:n['root']=n['id']==root['id']
+    root.setdefault('source_label',root['label'])
+    root['label']='原题条件'
+    root['preview']=''
 
 
 def validate_view(v):
@@ -59,9 +82,13 @@ def validate_view(v):
         if n.get('role') not in ['state','action','method','task']:raise ValueError('Invalid display role')
         if n.get('tone') not in ['neutral','success','failed','unknown']:raise ValueError('Invalid display tone')
         if n.get('tone')=='success' and not n.get('evidence_refs'):raise ValueError('Green node requires explicit acceptance evidence')
+    roots=[n for n in v['nodes'] if n.get('root')]
+    if len(roots)!=1 or roots[0]['id']!=v.get('root_id') or roots[0]['label']!='原题条件' or roots[0].get('preview')!='':
+        raise ValueError('The problem root must have the standard presentation')
     if v['semantic_model']=='state_action':
         if 'source_graph' not in v:raise ValueError('State-action views require the validated source graph')
         expected=prepare(v['source_graph'])
+        if v['root_id']!=expected['root_id']:raise ValueError('Display root differs from the declared initial state')
         if {n['id'] for n in expected['nodes']}!=set(ids) or {(e['id'],e['source'],e['target']) for e in expected['edges']}!={(e['id'],e['source'],e['target']) for e in v['edges']}:raise ValueError('Display topology differs from the formal graph')
         expected_nodes={n['id']:n for n in expected['nodes']}
         for n in v['nodes']:
@@ -88,8 +115,8 @@ def write_page(v,out):
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('input',type=Path);p.add_argument('--output',type=Path,required=True);p.add_argument('--view',action='store_true',help='Explicit legacy/curated display contract; never infer states from a dependency graph')
     p.add_argument('--node',default='node');p.add_argument('--node-modules',type=Path);p.add_argument('--browser-channel',default='chrome');p.add_argument('--browser-executable');p.add_argument('--layout',type=Path,help='Replay saved coordinates after checking display content hash');a=p.parse_args()
-    raw=a.input.read_bytes();data=json.loads(raw);v=copy.deepcopy(data) if a.view else prepare(data);validate_view(v)
-    v.pop('layout',None);v['input_sha256']=hashlib.sha256(raw).hexdigest();v['renderer_version']='routed-1.0';v['display_sha256']=hashlib.sha256(canonical(v).encode()).hexdigest()
+    raw=a.input.read_bytes();data=json.loads(raw);v=copy.deepcopy(data) if a.view else prepare(data);normalize_root(v);validate_view(v)
+    v.pop('layout',None);v['input_sha256']=hashlib.sha256(raw).hexdigest();v['renderer_version']='routed-1.1';v['display_sha256']=hashlib.sha256(canonical(v).encode()).hexdigest()
     out=a.output.resolve()
     if out.suffix!='.html':p.error('--output must end with .html')
     if out==a.input.resolve():p.error('Output must not overwrite input')
